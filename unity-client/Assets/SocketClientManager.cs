@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class SocketClientManager : MonoBehaviour
 {
-    private SocketClient client;
+    private SimpleSocketClient client;
     void Start()
     {
-        client = new SocketClient();
+        client = new SimpleSocketClient();
         client.StartClient();
     }
 
