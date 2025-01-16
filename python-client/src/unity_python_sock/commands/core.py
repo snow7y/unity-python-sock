@@ -1,4 +1,3 @@
-import struct
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,10 +14,18 @@ class CommandBase:
 
     def __str__(self):
         try:
-            return f"command_name: {self.command_name}, \nbody_size: {self.body_size}, \ncommand_body: {self.command_body}"
+            return (
+                f"command_name: {self.command_name}, \n"
+                f"body_size: {self.body_size}, \n"
+                f"command_body: {self.command_body}"
+            )
         except ValueError as e:
             logger.warning(f"コマンドが不正です: {e}")
-            return f"command_name: {self._command_name}, \nbody_size: {self._body_size}, \ncommand_body: {self._command_body}"
+            return (
+                f"command_name: {self._command_name}, \n"
+                f"body_size: {self._body_size}, \n"
+                f"command_body: {self._command_body}"
+            )
 
     @property
     def command_name(self) -> str:

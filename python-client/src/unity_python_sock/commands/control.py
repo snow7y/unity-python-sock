@@ -1,4 +1,4 @@
-from core import CommandBase
+from unity_python_sock.commands.core import CommandBase
 
 
 class ControlCommand(CommandBase):

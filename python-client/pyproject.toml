@@ -4,6 +4,9 @@ version = "0.1.0"
 description = ""
 authors = ["snow7y <103980824+snow7y@users.noreply.github.com>"]
 readme = "README.md"
+packages = [
+    { include = "unity_python_sock", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"

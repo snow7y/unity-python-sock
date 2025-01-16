@@ -2,7 +2,7 @@ from queue import Empty, Queue
 from threading import Thread
 from time import sleep
 
-from sock_server import SocketServer
+from src.sock_server import SocketServer
 
 server = SocketServer()
 server_thread = Thread(target=server.start, daemon=True)
