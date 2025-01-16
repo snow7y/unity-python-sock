@@ -2,6 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class CommandBase:
     """
     コマンドの基底クラス
@@ -15,9 +16,7 @@ class CommandBase:
     def __str__(self):
         try:
             return (
-                f"command_name: {self.command_name}, \n"
-                f"body_size: {self.body_size}, \n"
-                f"command_body: {self.command_body}"
+                f"command_name: {self.command_name}, \nbody_size: {self.body_size}, \ncommand_body: {self.command_body}"
             )
         except ValueError as e:
             logger.warning(f"コマンドが不正です: {e}")
@@ -55,7 +54,7 @@ class CommandBase:
     def command_body(self, value: dict):
         if not isinstance(value, dict):
             raise ValueError("command_bodyは辞書型で指定してください")
-        self._body_size = len(str(value).encode('utf-8'))
+        self._body_size = len(str(value).encode("utf-8"))
         self._command_body = value
 
     @property
@@ -85,7 +84,7 @@ if __name__ == "__main__":
         "action_parameters": {
             "param1": "value1",
             "param2": "value2",
-        }
+        },
     }
     print(command)
     # print(command.convert_body())
