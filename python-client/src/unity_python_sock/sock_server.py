@@ -2,6 +2,8 @@ import logging
 import os
 import socket
 
+from unity_python_sock.commands import CommandBase
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,26 +65,52 @@ class SocketServer:
 
     def _wait_for_result(self) -> str:
         """
-        クライアントからRESULT行を受け取るまでブロッキングで待機するユーティリティ
+        クライアントからRESPONSEプロトコルを受け取る
         """
         buffer = ""
+        print("Waiting for result")
         while True:
+            print("test")
             data = self.client_socket.recv(1024).decode("utf-8")
+            print(f"Data: {data}")
             if not data:
                 raise ConnectionError("クライアントとの接続が切断されました")
             buffer += data
-            lines = buffer.split("\n")
-            # 最後の行は未完成の可能性があるので、完全な行だけ処理
-            for i in range(len(lines) - 1):
-                line = lines[i].strip()
-                if line.startswith("RESULT:"):
-                    # 結果を返す
-                    return line[len("RESULT:") :]
-            # 未完成の最後の行をbufferに残す
-            if not buffer.endswith("\n"):
-                buffer = lines[-1]
-            else:
-                buffer = ""
+            print(f"Buffer: {buffer}")
+
+            # ヘッダー処理
+            newline_index = buffer.find("\n")
+            if newline_index == -1:
+                continue  # 改行が見つからない場合は次のデータを待つ
+
+            header = buffer[:newline_index].strip()
+            buffer = buffer[newline_index + 1:]  # ヘッダー部分を削除
+
+            if not header.startswith("RESPONSE"):
+                logger.error(f"不明なヘッダー形式: {header}")
+                continue
+
+            # ヘッダー解析
+            parts = header.split(" ")
+            if len(parts) != 2 or not parts[1].isdigit():
+                logger.error(f"ヘッダー形式が不正: {header}")
+                continue
+
+            body_size = int(parts[1])
+
+            # ボディ受信
+            while len(buffer) < body_size:
+                data = self.client_socket.recv(1024).decode("utf-8")
+                if not data:
+                    raise ConnectionError("クライアントとの接続が切断されました")
+                buffer += data
+
+            body = buffer[:body_size]
+            buffer = buffer[body_size:]  # ボディ部分を削除
+
+            logger.info(f"受信したレスポンス: ヘッダー={header}, ボディ={body}")
+            return body
+
 
     def handle_client(self, client_socket: socket.socket) -> None:
         """
@@ -106,18 +134,18 @@ class SocketServer:
             self.is_connected = False
             logger.info("クライアントとの接続を終了しました")
 
-    def send_command(self, command: str) -> str:
+    def send_command(self, command: CommandBase) -> str:
         """
         クライアントにコマンドを送信
 
         Args:
-            command (str): 送信するコマンド
+            command (CommandBase): 送信するコマンドのインスタンス
         """
         if self.client_socket:
             try:
-                message = f"COMMAND:{command}\n"
-                self.client_socket.sendall(message.encode("utf-8"))
-                logger.debug(f"コマンドを送信しました: {command}")
+                command.convert_body()
+                full_message = command.get_command()
+                self.client_socket.sendall(full_message.encode("utf-8"))
 
                 # コマンドの実行結果を待機
                 result = self._wait_for_result()

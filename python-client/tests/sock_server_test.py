@@ -2,11 +2,14 @@ from queue import Empty, Queue
 from threading import Thread
 from time import sleep
 
-from src.sock_server import SocketServer
+from unity_python_sock.commands import ControlCommand
+from unity_python_sock.sock_server import SocketServer
 
 server = SocketServer()
 server_thread = Thread(target=server.start, daemon=True)
 server_thread.start()
+
+print("クライアントの接続を待機中...")
 
 
 input_queue = Queue()
@@ -73,7 +76,8 @@ try:
             if not server.is_connected:
                 print("接続が失われました。コマンド送信をキャンセルしました。")
                 continue
-            server.send_command(command)
+            command_obj = ControlCommand(object_id="1", action=command, action_parameters={"param1": "value1"})
+            server.send_command(command_obj)
             print("選択してください: ", end="", flush=True)
         elif option == "2":
             print("送信するファイルのパス: ", end="", flush=True)

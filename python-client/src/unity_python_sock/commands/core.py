@@ -1,3 +1,4 @@
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,9 @@ class CommandBase:
                 f"body_size: {self._body_size}, \n"
                 f"command_body: {self._command_body}"
             )
+
+    def get_command(self):
+        return f"{self.command_header}\n{self.get_body_to_str()}"
 
     @property
     def command_name(self) -> str:
@@ -57,6 +61,15 @@ class CommandBase:
         self._body_size = len(str(value).encode("utf-8"))
         self._command_body = value
 
+    def get_body_to_str(self) -> str:
+        """
+        コマンドのボディを文字列に変換
+
+        Returns:
+            str: コマンドのボディ
+        """
+        return json.dumps(self.command_body)
+
     @property
     def command_header(self) -> str:
         """
@@ -65,7 +78,7 @@ class CommandBase:
         Returns:
             str: コマンドのヘッダー
         """
-        return f"{self.command_name} {self.body_size}\n"
+        return f"{self.command_name} {self.body_size}"
 
     def convert_body(self) -> dict:
         """
@@ -79,7 +92,7 @@ if __name__ == "__main__":
     command.command_name = "CONTROL"
     # command.body_size = 100.0
     command.command_body = {
-        "object_id": 1,
+        "object_id": "1",
         "action": "start",
         "action_parameters": {
             "param1": "value1",

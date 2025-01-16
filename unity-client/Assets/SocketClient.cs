@@ -15,13 +15,11 @@ public class SocketClient : MonoBehaviour
     private NetworkStream stream;
     private Thread receiveThread;
     private bool isConnected = false;
-    private bool shouldQuitApplication = false;
 
-    // メインスレッドでのみ取得可能なため、ここで格納する
     private string persistentDataPath;
 
     private ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
-    // ファイル受信データをキューで受け渡すためのクラス
+
     private class ReceivedFileData
     {
         public string fileName;
@@ -32,7 +30,6 @@ public class SocketClient : MonoBehaviour
 
     void Awake()
     {
-        // メインスレッドでのみ呼び出せるためここでパスを確保
         persistentDataPath = Application.persistentDataPath;
     }
 
@@ -60,7 +57,6 @@ public class SocketClient : MonoBehaviour
         {
             Debug.LogError("サーバー接続中にエラーが発生しました: " + e.Message);
             isConnected = false;
-            shouldQuitApplication = true;
         }
     }
 
@@ -90,181 +86,195 @@ public class SocketClient : MonoBehaviour
         try
         {
             byte[] buffer = new byte[1024];
-            StringBuilder lineBuffer = new StringBuilder();
+            StringBuilder messageBuffer = new StringBuilder();
 
             while (isConnected)
             {
                 int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                if (bytesRead == 0)
-                {
-                    Debug.Log("サーバーから切断されました");
-                    isConnected = false;
-                    shouldQuitApplication = true;
-                    break;
-                }
+                if (bytesRead == 0) throw new Exception("サーバーとの接続が切断されました");
 
-                string received = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                lineBuffer.Append(received);
-
-                // 改行で行区切り
+                messageBuffer.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
                 while (true)
                 {
-                    string fullText = lineBuffer.ToString();
-                    int newlineIndex = fullText.IndexOf('\n');
-                    if (newlineIndex < 0)
+                    string message = messageBuffer.ToString();
+                    int newlineIndex = message.IndexOf('\n');
+                    if (newlineIndex < 0) break;
+
+                    string header = message.Substring(0, newlineIndex).Trim();
+                    messageBuffer.Remove(0, newlineIndex + 1);
+
+                    Debug.Log($"受信したヘッダー: {header}");
+
+                    string[] parts = header.Split(' ');
+                    if (parts.Length != 2)
+                    {
+                        Debug.LogError("ヘッダー形式が不正");
                         break;
+                    }
 
-                    string line = fullText.Substring(0, newlineIndex).Trim('\r', '\n');
-                    lineBuffer.Remove(0, newlineIndex + 1);
+                    string commandType = parts[0];
+                    int bodySize = int.Parse(parts[1]);
 
-                    if (line.StartsWith("COMMAND:"))
-                    {
-                        string cmd = line.Substring("COMMAND:".Length);
-                        HandleCommand(cmd);
-                    }
-                    else if (line.StartsWith("FILE:"))
-                    {
-                        string[] parts = line.Split(':');
-                        if (parts.Length == 3)
-                        {
-                            string fileName = parts[1];
-                            if (long.TryParse(parts[2], out long fileSize))
-                            {
-                                // ファイル本体を受信
-                                ReceiveFileData(fileName, fileSize);
-                            }
-                            else
-                            {
-                                Debug.LogError("ファイルサイズが不正: " + parts[2]);
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogError("FILEヘッダ形式が不正: " + line);
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("不明な行メッセージ: " + line);
-                    }
+                    if (messageBuffer.Length < bodySize) break;
+
+                    string body = messageBuffer.ToString(0, bodySize);
+                    messageBuffer.Remove(0, bodySize);
+
+                    Debug.Log($"受信したBODY: {body}");
+
+                    HandleCommand(commandType, body);
                 }
             }
         }
         catch (Exception e)
         {
-            // ここではUnityのメインスレッドAPIは呼べないため、ログ出力のみ
-            Debug.LogError("受信中にエラーが発生しました: " + e.Message);
+            Debug.LogError($"受信処理中にエラーが発生: {e.Message}");
             Disconnect();
+        }
+    }
+
+    private void HandleCommand(string commandType, string body)
+    {
+        Debug.Log($"HandleCommand呼び出し - CommandType: {commandType}, Body: {body}");
+        switch (commandType)
+        {
+            case "CONTROL":
+                HandleControlCommand(body);
+                break;
+            case "SCENE":
+                HandleSceneCommand(body);
+                break;
+            case "UPDATE":
+                HandleUpdateCommand(body);
+                break;
+            case "TRANSFER":
+                HandleTransferCommand(body);
+                break;
+            case "PING":
+                SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"message\": \"pong\"}");
+                break;
+            default:
+                Debug.LogWarning($"不明なコマンドタイプ: {commandType}");
+                SendResponse("{\"status_code\": 400, \"status_message\": \"Bad Request\", \"error\": \"Unknown command\"}");
+                break;
+        }
+    }
+
+    private void HandleControlCommand(string body)
+    {
+        try
+        {
+            var commandData = JsonUtility.FromJson<ControlCommandData>(body);
+            Debug.Log($"オブジェクト {commandData.object_id} に対する操作: {commandData.action}");
+            // ここでオブジェクトの操作を実行する(いったん2秒スリープ)
+            Thread.Sleep(2000);
+            SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"success\"}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"CONTROLコマンド処理中にエラー: {e.Message}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to process CONTROL command\"}");
+        }
+    }
+
+    private void HandleSceneCommand(string body)
+    {
+        try
+        {
+            var sceneData = JsonUtility.FromJson<SceneCommandData>(body);
+            Debug.Log($"シーンを {sceneData.scene_name} に切り替えます");
+            SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"scene changed\"}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"SCENEコマンド処理中にエラー: {e.Message}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to change scene\"}");
+        }
+    }
+
+    private void HandleUpdateCommand(string body)
+    {
+        try
+        {
+            var updateData = JsonUtility.FromJson<UpdateCommandData>(body);
+            Debug.Log($"オブジェクト {updateData.object_id} を {updateData.file_name} に更新します");
+            SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"object updated\"}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"UPDATEコマンド処理中にエラー: {e.Message}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to update object\"}");
+        }
+    }
+
+    private void HandleTransferCommand(string body)
+    {
+        try
+        {
+            var transferData = JsonUtility.FromJson<TransferCommandData>(body);
+            ReceiveFileData(transferData.file_name, transferData.file_size);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"TRANSFERコマンド処理中にエラー: {e.Message}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to process TRANSFER command\"}");
         }
     }
 
     private void ReceiveFileData(string fileName, long fileSize)
     {
-        byte[] fileBuffer = new byte[fileSize];
-        int totalRead = 0;
-        while (totalRead < fileSize)
+        try
         {
-            int remain = (int)(fileSize - totalRead);
-            int readSize = Math.Min(remain, 1024);
-            byte[] buf = new byte[readSize];
-            int bytesRead = stream.Read(buf, 0, readSize);
-            if (bytesRead == 0)
-            {
-                Debug.LogError("ファイルデータ受信中にサーバーから切断されました");
-                Disconnect();
-                shouldQuitApplication = true;
-                return;
-            }
-            Array.Copy(buf, 0, fileBuffer, totalRead, bytesRead);
-            totalRead += bytesRead;
-        }
+            byte[] fileBuffer = new byte[fileSize];
+            int totalRead = 0;
 
-        // ファイル受信完了データをキューに格納
-        fileQueue.Enqueue(new ReceivedFileData { fileName = fileName, fileSize = fileSize, fileData = fileBuffer });
+            while (totalRead < fileSize)
+            {
+                int bytesRead = stream.Read(fileBuffer, totalRead, fileBuffer.Length - totalRead);
+                if (bytesRead == 0)
+                {
+                    throw new Exception("サーバーから切断されました");
+                }
+                totalRead += bytesRead;
+            }
+
+            string savePath = Path.Combine(persistentDataPath, fileName);
+            File.WriteAllBytes(savePath, fileBuffer);
+            Debug.Log($"ファイル受信・保存完了: {savePath} (サイズ: {fileSize}バイト)");
+
+            SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"file received\"}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"ファイル受信処理中にエラー: {e.Message}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to receive file\"}");
+        }
     }
 
-    private void HandleCommand(string cmd)
+    private void SendResponse(string responseBody)
     {
-        // メインスレッドで処理するためQueueにいれる
-        messageQueue.Enqueue("COMMAND:" + cmd);
-    }
+        responseBody += "\n";
 
-    void Update()
-    {
-        // ここはメインスレッド、UnityAPI使用可能
-        // サーバーとの切断があればアプリケーションを終了
-        if (shouldQuitApplication)
-        {
-            Debug.Log("アプリケーションを終了します");
-            ApplicationQuit();
-            shouldQuitApplication = false;
-        }
-        // コマンド処理
-        while (messageQueue.TryDequeue(out string msg))
-        {
-            if (msg.StartsWith("COMMAND:"))
-            {
-                string cmd = msg.Substring("COMMAND:".Length);
-                Debug.Log("メインスレッドでコマンド処理: " + cmd);
-                // ここでコマンドに応じたUnity操作を行う
-                string result = "";
-                try
-                {
-                    if (cmd == "next")
-                    {
-                        Debug.Log("次のシーンに切り替える処理");
-                        result = $"RESULT:Command '{cmd}' executed successfully.\n";
-                    }
-                    else if (cmd == "prev")
-                    {
-                        Debug.Log("前のシーンに切り替える処理");
-                        result = $"RESULT:Command '{cmd}' executed successfully.\n";
-                    }
-                    else
-                    {
-                        Debug.LogWarning("不明なコマンド: " + cmd);
-                        result = $"RESULT:Unknown command '{cmd}'.\n";
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError("コマンド処理中にエラーが発生しました: " + e.Message);
-                    result = $"RESULT:Error occurred while executing command '{cmd}': {e.Message}\n";
-                }
-                finally
-                {
-                    // 結果をサーバーに返信
-                    SendMessageToServer(result);
-                }
-            }
-        }
+        int bodySize = Encoding.UTF8.GetBytes(responseBody).Length;
+        string header = $"RESPONSE {bodySize}\n";
+        string message = header + responseBody;
+        byte[] data = Encoding.UTF8.GetBytes(message);
+        //byte[] headerBytes = Encoding.UTF8.GetBytes(header);
+        //byte[] bodyBytes = Encoding.UTF8.GetBytes(responseBody);
+        //byte[] message = new byte[headerBytes.Length + bodyBytes.Length];
+        //headerBytes.CopyTo(message, 0);
+        //bodyBytes.CopyTo(message, headerBytes.Length);
 
-        // ファイル処理
-        while (fileQueue.TryDequeue(out ReceivedFileData fdata))
+        try
         {
-            // メインスレッドでのみpersistentDataPathを使用
-            string savePath = Path.Combine(persistentDataPath, fdata.fileName);
-            string result = "";
-            try
-            {
-                File.WriteAllBytes(savePath, fdata.fileData);
-                Debug.Log($"ファイル受信・保存完了: {savePath} (サイズ: {fdata.fileSize}バイト)");
-                // ここで受信したファイルをUnityオブジェクトに適用する処理などを行う
-                // ファイル受信完了をサーバーに通知
-                result = $"RESULT:File '{fdata.fileName}' processed successfully.\n";
-            }
-            catch (Exception e)
-            {
-                Debug.LogError("ファイル保存中にエラー: " + e.Message);
-                result = $"RESULT:File '{fdata.fileName}' processing failed: {e.Message}\n";
-            }
-            finally
-            {
-                // ファイル受信完了をサーバーに通知
-                SendMessageToServer(result);
-            }
+            stream.Write(data, 0, data.Length);
+            Debug.Log($"レスポンス送信: {message}");
+            //Debug.Log($"レスポンス送信: {header.Trim()} {responseBody}");
         }
-
+        catch (Exception e)
+        {
+            Debug.LogError($"レスポンス送信中にエラーが発生しました: {e.Message}");
+        }
     }
 
     private void Disconnect()
@@ -286,12 +296,31 @@ public class SocketClient : MonoBehaviour
         }
     }
 
-    private void ApplicationQuit()
+    [Serializable]
+    private class ControlCommandData
     {
-        Application.Quit();
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#endif
+        public string object_id;
+        public string action;
+    }
+
+    [Serializable]
+    private class SceneCommandData
+    {
+        public string scene_name;
+    }
+
+    [Serializable]
+    private class UpdateCommandData
+    {
+        public string object_id;
+        public string file_name;
+    }
+
+    [Serializable]
+    private class TransferCommandData
+    {
+        public string file_name;
+        public long file_size;
     }
 
     void OnApplicationQuit()
@@ -299,8 +328,6 @@ public class SocketClient : MonoBehaviour
         Disconnect();
         if (receiveThread != null && receiveThread.IsAlive)
         {
-            // isConnected = falseでループ終了を誘発
-            // ここでreceiveThread.Join(適宜タイムアウト)して確実にスレッドを終了させる
             receiveThread.Join();
         }
     }
