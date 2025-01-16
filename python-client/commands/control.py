@@ -1,5 +1,5 @@
-from commands.control import CommandBase
-    
+from core import CommandBase
+
 
 class ControlCommand(CommandBase):
     """
@@ -14,8 +14,30 @@ class ControlCommand(CommandBase):
         self.action = None
         self.action_parameters = {}
 
-    def convert_body(self) -> str:
+    def convert_body(self) -> dict:
         """
         コマンドのボディを生成
         """
-        return f"{self.object_id} {self.action} {self.action_parameters}\n"
+        body = {
+            "object_id": self.object_id,
+            "action": self.action,
+            "action_parameters": self.action_parameters,
+        }
+        self.command_body = body
+        return body
+
+
+if __name__ == "__main__":
+    command = ControlCommand()
+    command.object_id = 1
+    command.action = "start"
+    command.action_parameters = {
+        "speed": 100,
+        "direction": "forward",
+    }
+    print(command)
+
+    print("\n------------------------\n")
+
+    command.convert_body()
+    print(command)
