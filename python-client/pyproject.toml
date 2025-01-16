@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "unity-python-sock"
+version = "0.1.0"
+description = ""
+authors = ["snow7y <103980824+snow7y@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9.1"
+mypy = "^1.14.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+# Ruffの設定
+[tool.ruff]
+target-version = "py312"
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".git",
+    "__init__.py",
+]
+
+line-length = 120
+indent-width = 4
+
+
+[tool.ruff.lint]
+# PEP8のどのルールを対象に警告を出すか
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "B",
+    "PL",
+    "UP",
+]
+ignore = [
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.pylint]
+max-args = 6
