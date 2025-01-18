@@ -1,5 +1,3 @@
-import json
-
 from unity_python_sock.commands.core import CommandBase
 
 

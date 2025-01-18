@@ -1,9 +1,12 @@
+import logging
 from queue import Empty, Queue
 from threading import Thread
 from time import sleep
 
 from unity_python_sock.commands import ControlCommand
 from unity_python_sock.sock_server import SocketServer
+
+logging.basicConfig(level=logging.DEBUG)
 
 server = SocketServer()
 server_thread = Thread(target=server.start, daemon=True)

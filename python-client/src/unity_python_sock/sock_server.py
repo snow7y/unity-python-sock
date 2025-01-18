@@ -64,53 +64,15 @@ class SocketServer:
         logger.info("サーバーを完全に停止しました")
 
     def _wait_for_result(self) -> str:
-        """
-        クライアントからRESPONSEプロトコルを受け取る
-        """
-        buffer = ""
-        print("Waiting for result")
-        while True:
-            print("test")
-            data = self.client_socket.recv(1024).decode("utf-8")
-            print(f"Data: {data}")
-            if not data:
-                raise ConnectionError("クライアントとの接続が切断されました")
-            buffer += data
-            print(f"Buffer: {buffer}")
+        print("Waiting for result...")
 
-            # ヘッダー処理
-            newline_index = buffer.find("\n")
-            if newline_index == -1:
-                continue  # 改行が見つからない場合は次のデータを待つ
-
-            header = buffer[:newline_index].strip()
-            buffer = buffer[newline_index + 1:]  # ヘッダー部分を削除
-
-            if not header.startswith("RESPONSE"):
-                logger.error(f"不明なヘッダー形式: {header}")
-                continue
-
-            # ヘッダー解析
-            parts = header.split(" ")
-            if len(parts) != 2 or not parts[1].isdigit():
-                logger.error(f"ヘッダー形式が不正: {header}")
-                continue
-
-            body_size = int(parts[1])
-
-            # ボディ受信
-            while len(buffer) < body_size:
-                data = self.client_socket.recv(1024).decode("utf-8")
-                if not data:
-                    raise ConnectionError("クライアントとの接続が切断されました")
-                buffer += data
-
-            body = buffer[:body_size]
-            buffer = buffer[body_size:]  # ボディ部分を削除
-
-            logger.info(f"受信したレスポンス: ヘッダー={header}, ボディ={body}")
-            return body
-
+        data = self.client_socket.recv(1024).decode("utf-8")
+        logger.debug(f"受信したデータ: {data}")
+        response = data.split("\n")
+        header = response[0]
+        body = response[1]
+        logger.info(f"受信したレスポンス: ヘッダー={header}, ボディ={body}")
+        return body
 
     def handle_client(self, client_socket: socket.socket) -> None:
         """
