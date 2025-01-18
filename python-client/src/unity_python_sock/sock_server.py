@@ -64,14 +64,13 @@ class SocketServer:
         logger.info("サーバーを完全に停止しました")
 
     def _wait_for_result(self) -> str:
-        print("Waiting for result...")
+        logger.info("Waiting for result...")
 
         data = self.client_socket.recv(1024).decode("utf-8")
-        logger.debug(f"受信したデータ: {data}")
         response = data.split("\n")
         header = response[0]
         body = response[1]
-        logger.info(f"受信したレスポンス: ヘッダー={header}, ボディ={body}")
+        logger.debug(f"受信したレスポンス: ヘッダー={header}, ボディ={body}")
         return body
 
     def handle_client(self, client_socket: socket.socket) -> None:
