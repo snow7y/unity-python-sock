@@ -1,8 +1,9 @@
+import json
 import logging
-import os
 import socket
+import sys
 
-from unity_python_sock.commands import CommandBase
+from unity_python_sock.commands import CommandBase, TransferCommand
 
 logger = logging.getLogger(__name__)
 
@@ -62,16 +63,27 @@ class SocketServer:
         if self.server_socket:
             self.server_socket.close()
         logger.info("サーバーを完全に停止しました")
+        # アプリケーションを終了
+        sys.exit()
 
-    def _wait_for_result(self) -> str:
+    def _wait_for_result(self) -> dict:
         logger.info("Waiting for result...")
 
         data = self.client_socket.recv(1024).decode("utf-8")
         response = data.split("\n")
         header = response[0]
         body = response[1]
-        logger.debug(f"受信したレスポンス: ヘッダー={header}, ボディ={body}")
-        return body
+        # ボディの文字列を辞書型に変換
+        try:
+            body_dict = json.loads(body)
+        except json.JSONDecodeError as e:
+            logger.error(f"ボディの文字列を辞書型に変換中にエラーが発生しました: {e}")
+            body_dict = {"status_message": "ERROR", "error_message": str(e)}
+        except Exception as e:
+            raise e
+
+        logger.debug(f"受信したレスポンス: ヘッダー={header}, ボディ={body_dict}")
+        return body_dict
 
     def handle_client(self, client_socket: socket.socket) -> None:
         """
@@ -84,10 +96,11 @@ class SocketServer:
         try:
             # クライアントからのデータを受け取る処理（必要なら実装）
             while self.running:
-                data = client_socket.recv(1024).decode("utf-8")
-                if not data:
-                    break
-                logger.debug(f"クライアントからのデータ: {data}")
+                pass
+                # data = client_socket.recv(1024).decode("utf-8")
+                # if not data:
+                #     break
+                # logger.debug(f"クライアントからのデータ: {data}")
         except Exception as e:
             logger.error(f"クライアント処理中にエラーが発生しました: {e}")
         finally:
@@ -95,29 +108,32 @@ class SocketServer:
             self.is_connected = False
             logger.info("クライアントとの接続を終了しました")
 
-    def send_command(self, command: CommandBase) -> str:
-        """
-        クライアントにコマンドを送信
-
-        Args:
-            command (CommandBase): 送信するコマンドのインスタンス
-        """
+    def _send_command(self, command: CommandBase) -> dict:
         if self.client_socket:
             try:
-                command.convert_body()
                 full_message = command.get_command()
                 self.client_socket.sendall(full_message.encode("utf-8"))
 
-                # コマンドの実行結果を待機
                 result = self._wait_for_result()
-                logger.info(f"コマンドの実行結果: {result}")
                 return result
             except Exception as e:
                 logger.error(f"コマンド送信中にエラーが発生しました: {e}")
         else:
             logger.warning("クライアントが接続されていません")
 
-    def send_file(self, file_path: str) -> str:
+    def send_command(self, command: CommandBase) -> dict:
+        """
+        クライアントにコマンドを送信
+
+        Args:
+            command (CommandBase): 送信するコマンドのインスタンス
+        """
+        if isinstance(command, TransferCommand):
+            return self.send_file(command)
+
+        return self._send_command(command)
+
+    def send_file(self, command: TransferCommand) -> dict:
         """
         クライアントにファイルを送信
 
@@ -128,30 +144,18 @@ class SocketServer:
             FileNotFoundError: ファイルが見つからない場合
             e: その他のエラー
         """
-        if self.client_socket:
-            try:
-                if not os.path.isfile(file_path):
-                    logger.error(f"ファイルが見つかりません: {file_path}")
-                    raise FileNotFoundError(f"ファイルが見つかりません: {file_path}")
+        result = self._send_command(command)
 
-                # ファイル情報を送信
-                file_name = os.path.basename(file_path)
-                file_size = os.path.getsize(file_path)
-                file_header = f"FILE:{file_name}:{file_size}\n"
-                self.client_socket.sendall(file_header.encode("utf-8"))
+        if result["status_message"] != "OK":
+            logger.error(f"ファイル情報の送信に失敗しました: {result}")
+            raise Exception(f"ファイル情報の送信に失敗しました: {result}")
 
-                # ファイル内容を送信
-                with open(file_path, "rb") as f:
-                    while chunk := f.read(1024):
-                        self.client_socket.sendall(chunk)
+        with open(command.file_path, "rb") as f:
+            while chunk := f.read(1024):
+                self.client_socket.sendall(chunk)
 
-                logger.debug(f"ファイルを送信しました: {file_path}")
+        logger.debug(f"ファイルを送信しました: {command.file_path}")
 
-                # ファイルの送信結果を待機
-                result = self._wait_for_result()
-                logger.info(f"ファイルの送信結果: {result}")
-                return result
-            except Exception as e:
-                raise e
-        else:
-            logger.warning("クライアントが接続されていません")
+        result = self._wait_for_result()
+        logger.info(f"ファイルの送信結果: {result}")
+        return result

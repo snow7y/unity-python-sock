@@ -28,6 +28,7 @@ class CommandBase:
             )
 
     def get_command(self):
+        self.convert_body()
         return f"{self.command_header}\n{self.get_body_to_str()}"
 
     @property
@@ -68,7 +69,6 @@ class CommandBase:
         Returns:
             str: コマンドのボディ
         """
-        self.convert_body()
         return json.dumps(self.command_body)
 
     @property

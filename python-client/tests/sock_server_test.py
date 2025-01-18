@@ -3,7 +3,7 @@ from queue import Empty, Queue
 from threading import Thread
 from time import sleep
 
-from unity_python_sock.commands import ControlCommand
+from unity_python_sock.commands import ControlCommand, TransferCommand
 from unity_python_sock.sock_server import SocketServer
 
 logging.basicConfig(level=logging.DEBUG)
@@ -93,7 +93,8 @@ try:
             if not server.is_connected:
                 print("接続が失われました。ファイル送信をキャンセルしました。")
                 continue
-            server.send_file(file_path)
+            command_obj = TransferCommand(file_path)
+            server.send_file(command_obj)
             print("選択してください: ", end="", flush=True)
         elif option.lower() == "q":
             server.stop()
