@@ -68,6 +68,7 @@ class CommandBase:
         Returns:
             str: コマンドのボディ
         """
+        self.convert_body()
         return json.dumps(self.command_body)
 
     @property
