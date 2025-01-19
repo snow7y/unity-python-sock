@@ -70,13 +70,11 @@ class SocketServer:
         buffer = ""
         print("Waiting for result")
         while True:
-            print("test")
             data = self.client_socket.recv(1024).decode("utf-8")
             print(f"Data: {data}")
             if not data:
                 raise ConnectionError("クライアントとの接続が切断されました")
             buffer += data
-            print(f"Buffer: {buffer}")
 
             # ヘッダー処理
             newline_index = buffer.find("\n")
