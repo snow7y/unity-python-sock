@@ -9,7 +9,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -23,7 +23,7 @@ build-backend = "poetry.core.masonry.api"
 
 # Ruffの設定
 [tool.ruff]
-target-version = "py312"
+target-version = "py310"
 exclude = [
     ".venv",
     "venv",

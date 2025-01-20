@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class CommandBase:
 
     def __str__(self):
         try:
+            self.convert_body()
             return (
                 f"command_name: {self.command_name}, \nbody_size: {self.body_size}, \ncommand_body: {self.command_body}"
             )
@@ -88,7 +90,35 @@ class CommandBase:
         raise NotImplementedError("convert_bodyメソッドが実装されていません")
 
 
+@dataclass
+class ResponseModel:
+    """
+    レスポンスモデル
+    """
+
+    status_code: int
+    status_message: str
+    response_data: dict | None = None
+
+    def __str__(self):
+        return f"status_code: {self.status_code}, status_message: {self.status_message}, response_data: {self.response_data}"
+    
+    # json形式からResponseModelを生成
+    @classmethod
+    def from_json(cls, json_data: dict):
+        return cls(**json_data)
+    
+    def to_json(self):
+        return {
+            "status_code": self.status_code,
+            "status_message": self.status_message,
+            "response_data": self.response_data,
+        }
+
+
 if __name__ == "__main__":
+    from pprint import pprint
+
     command = CommandBase()
     command.command_name = "CONTROL"
     # command.body_size = 100.0
@@ -102,3 +132,16 @@ if __name__ == "__main__":
     }
     print(command)
     # print(command.convert_body())
+
+    response_json = {
+        "status_code": "200",
+        "status_message": "OK",
+        "response_data": {
+            "result": "success",
+        },
+    }
+    response = ResponseModel.from_json(response_json)
+    print(response)
+    pprint(response.to_json())
+
+

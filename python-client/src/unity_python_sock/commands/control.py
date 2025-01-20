@@ -75,5 +75,5 @@ if __name__ == "__main__":
 
     print("\n------------------------\n")
 
-    command.convert_body()
-    print(command)
+    # command.convert_body()
+    print(command.get_body_to_str())

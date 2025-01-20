@@ -3,7 +3,10 @@ import logging
 import socket
 import sys
 
-from unity_python_sock.commands import CommandBase, TransferCommand
+from unity_python_sock.commands import (
+    CommandBase,
+    TransferCommand,
+)
 
 logger = logging.getLogger(__name__)
 
