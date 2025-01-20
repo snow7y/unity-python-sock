@@ -41,6 +41,7 @@ class SocketServer:
         except Exception as e:
             logger.error(f"サーバーの起動中にエラーが発生しました: {e}")
             self.stop()
+            return
 
         try:
             while self.running:
@@ -54,6 +55,7 @@ class SocketServer:
             logger.error(f"サーバーでエラーが発生しました {e}")
         finally:
             self.stop()
+            return
 
     def stop(self) -> None:
         """
@@ -67,7 +69,7 @@ class SocketServer:
             self.server_socket.close()
         logger.info("サーバーを完全に停止しました")
         # アプリケーションを終了
-        sys.exit()
+        sys.exit(0)
 
     def _wait_for_result(self) -> dict:
         logger.info("Waiting for result...")

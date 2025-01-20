@@ -21,9 +21,10 @@ class TransferCommand(CommandBase):
         return self._file_path
 
     @file_path.setter
-    def file_path(self, value: str):
-        if not isinstance(value, str):
-            raise ValueError("file_pathは文字列で指定してください")
+    def file_path(self, value: str | None):
+        if value is None:
+            self._file_path = None
+            return
         if not os.path.exists(value):
             raise FileNotFoundError(f"ファイルが見つかりません: {value}")
         self._file_path = value
