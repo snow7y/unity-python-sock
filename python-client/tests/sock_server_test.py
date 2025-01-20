@@ -35,10 +35,10 @@ def input_thread(queue):
 Thread(target=input_thread, args=(input_queue,), daemon=True).start()
 
 
-def get_input():
+def get_input(question_print: str = "選択してください"):
     while True:
         try:
-            print("選択してください: ", end="", flush=True)
+            print(f"{question_print}: ", end="", flush=True)
             option = input_queue.get(timeout=60)  # 60秒間待機
             if not isinstance(option, str):
                 print("無効な入力です。もう一度試してください")
@@ -67,10 +67,10 @@ def display_menu():
 def choose_command(command_num: str):
     match command_num:
         case "1":
-            action = get_input()
+            action = get_input("アクション内容を入力してください")
             command_obj = ControlCommand(object_id="1", action=action, action_parameters={"param1": "value1"})
         case "2":
-            file_path = get_input()
+            file_path = get_input("ファイルのパスを入力してください")
             command_obj = TransferCommand(file_path)
         case "3":
             command_obj = NextCommand()
@@ -80,7 +80,7 @@ def choose_command(command_num: str):
             command_obj = ListCommand()
         case "6":
             command_obj = PingCommand()
-        case "q":
+        case "q": # サーバーを停止
             server.stop()
             return
         case _:
@@ -113,6 +113,9 @@ def main():
             choose_command(option)
     except KeyboardInterrupt:
         print("\nサーバーを停止します")
+        server.stop()
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
         server.stop()
 
 
