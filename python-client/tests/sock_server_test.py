@@ -38,9 +38,10 @@ Thread(target=input_thread, args=(input_queue,), daemon=True).start()
 def get_input():
     while True:
         try:
-            option = input_queue.get(timeout=30)  # 1秒間待機
-            if not isinstance(option, int):
-                print("無効な選択です。もう一度試してください")
+            print("選択してください: ", end="", flush=True)
+            option = input_queue.get(timeout=10)  # 1秒間待機
+            if not isinstance(option, str):
+                print("無効な入力です。もう一度試してください")
                 continue
             return option
         except Empty:
@@ -60,24 +61,24 @@ def display_menu():
     print("6: pingコマンドを送信")
     print("q: サーバーを停止")
     print("----------------")
-    print("選択してください: ", end="", flush=True)
+    
 
 
-def choose_command(command_num: int):
+def choose_command(command_num: str):
     match command_num:
-        case 1:
+        case "1":
             action = get_input()
             command_obj = ControlCommand(object_id="1", action=action, action_parameters={"param1": "value1"})
-        case 2:
+        case "2":
             file_path = get_input()
             command_obj = TransferCommand(file_path)
-        case 3:
+        case "3":
             command_obj = NextCommand()
-        case 4:
+        case "4":
             command_obj = PreviousCommand()
-        case 5:
+        case "5":
             command_obj = ListCommand()
-        case 6:
+        case "6":
             command_obj = PingCommand()
         case "q":
             server.stop()
@@ -90,8 +91,23 @@ def choose_command(command_num: int):
 
 
 def main():
+    last_connection_state = server.is_connected  # 接続状態を記録
+
     try:
         while True:
+            # 接続状態が変化した場合のみメッセージを表示
+            if server.is_connected != last_connection_state:
+                last_connection_state = server.is_connected
+                if not server.is_connected:
+                    print("サーバーとの接続がありません。再接続を待機しています...")
+                else:
+                    print("サーバーに接続されました。")
+
+            # サーバーが接続されていない場合は再接続を待機
+            if not server.is_connected:
+                sleep(1)
+                continue
+
             display_menu()
             option = get_input()
             choose_command(option)
