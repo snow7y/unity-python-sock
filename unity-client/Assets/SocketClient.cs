@@ -147,15 +147,21 @@ public class SocketClient : MonoBehaviour
             case "UPDATE":
                 HandleUpdateCommand(body);
                 break;
+            case "NEXT":
+                SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"next command sccess\"}");
+                break;
+            case "PREVIOUS":
+                SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"previous command sccess\"}");
+                break;
             case "TRANSFER":
                 HandleTransferCommand(body);
                 break;
             case "PING":
-                SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"message\": \"pong\"}");
+                SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"ping command sccess\"}");
                 break;
             default:
                 Debug.LogWarning($"不明なコマンドタイプ: {commandType}");
-                SendResponse("{\"status_code\": 400, \"status_message\": \"Bad Request\", \"error\": \"Unknown command\"}");
+                SendResponse("{\"status_code\": 400, \"status_message\": \"Bad Request\", \"result\": \"Unknown command\"}");
                 break;
         }
     }
@@ -173,7 +179,7 @@ public class SocketClient : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError($"CONTROLコマンド処理中にエラー: {e.Message}");
-            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to process CONTROL command\"}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"result\": \"Failed to process CONTROL command\"}");
         }
     }
 
@@ -188,7 +194,7 @@ public class SocketClient : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError($"SCENEコマンド処理中にエラー: {e.Message}");
-            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to change scene\"}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"result\": \"Failed to change scene\"}");
         }
     }
 
@@ -203,7 +209,7 @@ public class SocketClient : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError($"UPDATEコマンド処理中にエラー: {e.Message}");
-            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to update object\"}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"result\": \"Failed to update object\"}");
         }
     }
 
@@ -212,12 +218,13 @@ public class SocketClient : MonoBehaviour
         try
         {
             var transferData = JsonUtility.FromJson<TransferCommandData>(body);
+            SendResponse("{\"status_code\": 200, \"status_message\": \"OK\", \"result\": \"file receive to ready\"}");
             ReceiveFileData(transferData.file_name, transferData.file_size);
         }
         catch (Exception e)
         {
             Debug.LogError($"TRANSFERコマンド処理中にエラー: {e.Message}");
-            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to process TRANSFER command\"}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"result\": \"Failed to process TRANSFER command\"}");
         }
     }
 
@@ -247,7 +254,7 @@ public class SocketClient : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError($"ファイル受信処理中にエラー: {e.Message}");
-            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"error\": \"Failed to receive file\"}");
+            SendResponse("{\"status_code\": 500, \"status_message\": \"Internal Server Error\", \"result\": \"Failed to receive file\"}");
         }
     }
 
