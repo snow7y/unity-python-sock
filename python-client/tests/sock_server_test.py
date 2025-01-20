@@ -39,7 +39,7 @@ def get_input():
     while True:
         try:
             print("選択してください: ", end="", flush=True)
-            option = input_queue.get(timeout=10)  # 1秒間待機
+            option = input_queue.get(timeout=60)  # 60秒間待機
             if not isinstance(option, str):
                 print("無効な入力です。もう一度試してください")
                 continue
